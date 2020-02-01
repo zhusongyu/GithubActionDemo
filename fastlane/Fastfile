@@ -1,0 +1,40 @@
+
+default_platform(:ios)
+
+platform :ios do
+
+  create_keychain(
+      name: "CI",
+      password: ENV["MATCH_PASSWORD"],
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false
+  )
+  match(
+        git_url: "git@github.com:zhusongyu/certificates.git", 
+        type: "adhoc", 
+	readonly: true, 
+	app_identifier: "com.zsy.actiondemo",
+      	keychain_name: "CI",
+      	keychain_password: ENV["MATCH_PASSWORD"]
+	)
+  sh("security list-keychains -d user") 
+  sh("security default-keychain -d user")
+  sh("security find-identity -v -p codesigning CI")
+
+  lane :pgy do
+    xcode_select("/Applications/Xcode.app")
+    gym(xcargs: "-UseNewBuildSystem=YES",
+        scheme: "GithubActionDemo",
+	project: "GithubActionDemo.xcodeproj",
+	export_method: "ad-hoc",
+      	export_options: {
+          compileBitcode: false,
+        }  
+     )
+    pgyer(api_key: "92c0423f53102ddf1f06a92bd0f2fb86", user_key: "4ae6cbc1ef990ff47453be759d93d306",password: "123456", install_type: "2")
+
+    # firim(firim_api_token:"392bc7f0f92622ec086cb47be760b054")
+  end
+end

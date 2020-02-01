@@ -1,0 +1,52 @@
+#脚本名字
+name: iOS Build
+
+#触发时机
+on: [push]
+
+#工作流程
+jobs:
+  build:
+    name: Build phase
+    runs-on: macOS-latest
+    strategy:
+        matrix:
+            destination: ['platform=iOS Simulator,OS=13.2.2,name=iPhone 11']
+    steps:
+    #抓取代码，用别人写好的
+    - uses: actions/checkout@master
+    #自己写设置SSH Keys脚本
+    - name: Setup SSH Keys and known_hosts for fastlane match
+      #环境变量，预先设置，在Github页面Settings/Secrets路径下添加，secrets.PRIVATE_KEY就是secrets路径下命名为PRIVATE_KEY的环境变量
+      env:
+         PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+         PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+         HOST: ${{ secrets.HOST }}
+           #  Copied from https://github.com/maddox/actions/blob/master/ssh/entrypoint.sh
+      #把这些环境变量设置到远程服务器，这样远程服务器就跟你本地电脑有一样的权限了，不然部署会有问题
+      run: |
+        SSH_PATH="$HOME/.ssh"
+
+        mkdir -p "$SSH_PATH"
+        touch "$SSH_PATH/known_hosts"
+
+        echo "$PRIVATE_KEY" > "$SSH_PATH/id_rsa"
+
+        chmod 700 "$SSH_PATH"
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        chmod 600 "$SSH_PATH/known_hosts"
+        chmod 600 "$SSH_PATH/id_rsa"
+
+        eval $(ssh-agent)
+        ssh-add "$SSH_PATH/id_rsa"
+
+    - name: fastlane build and pgy deploy
+      #执行别人写好的fastlane脚本，根据需要配置
+      uses: maierj/fastlane-action@v0.10.0
+      with:
+        #执行我们写好的pgy命令
+        lane: 'pgy'
+        subdirectory: 'fastlane'
+      env:
+        #用match自动管理证书
+        MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
